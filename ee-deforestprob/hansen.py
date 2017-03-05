@@ -24,17 +24,21 @@ ee.Initialize()
 # =============================================================================
 
 # Region for Cameroon
-regCMR = ee.Geometry.Rectangle(coords=[8.382218, 1.654666, 16.192148, 13.083333])
+regCMR = ee.Geometry.Rectangle(coords=[8.382218, 1.654666,
+                                       16.192148, 13.083333])
 
 # Hansen map
 gfcImage = ee.Image('UMD/hansen/global_forest_change_2015').clip(regCMR)
-#print(gfcImage.getInfo())
+# print(gfcImage.getInfo())
 
-# Displaying forest, loss, and gain
-treeCover = gfcImage.select(['treecover2000'])
-forest = treeCover.gte(50)
-lossImage = gfcImage.select(['loss'])
-gainImage = gfcImage.select(['gain'])
+# Tree cover, loss, and gain
+treecover = gfcImage.select(['treecover2000'])
+loss = gfcImage.select(['loss'])
+gain = gfcImage.select(['gain'])
+lossyear = gfcImage.select(['lossyear'])
+
+# Computing forest in 2000
+forest = treecover.gte(50)
 
 # Export Asset
 exportAsset = ee.batch.Export.image.toAsset(forest,
