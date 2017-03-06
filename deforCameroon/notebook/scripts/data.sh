@@ -10,11 +10,12 @@
 
 # Make output directory
 mkdir -p data_raw
-cd data_raw
+cd "data_raw"
 
 # Variables
 continent="africa"
 country="cameroon"
+iso="CMR"
 proj="EPSG:32632" # WGS84 / UTM zone 32N, see http://epsg.io 
 extent="431451 184295 1301829 1452775" # xmin ymin xmax ymax
 tiles_long="38-40" # see http://dwtkns.com/srtm/
@@ -143,14 +144,15 @@ echo "Protected area network from Protected Planet\n"
 # See protected planet: www.protectedplanet.net
 
 # Download from Protected Planet
-#url=""
-#wget -O pa.zip $url
-unzip WDPA_Mar2017_CMR-shapefile.zip
+url="https://www.protectedplanet.net/downloads/WDPA_Mar2017_"$iso"?type=shapefile"
+wget -O pa.zip $url
+unzip pa.zip
 
-# Extract only AP and NAP and reproject
+# Reproject
+input_file="WDPA_Mar2017_"$iso"-shapefile-polygons.shp"
 ogr2ogr -overwrite -skipfailures -f 'ESRI Shapefile' -progress \
         -s_srs EPSG:4326 -t_srs $proj \
-        -lco ENCODING=UTF-8 pa.shp WDPA_Mar2017_CMR-shapefile-polygons.shp
+        -lco ENCODING=UTF-8 pa.shp $input_file
 
 # Convert to kml
 ogr2ogr -f 'KML' pa.kml pa.shp 
@@ -162,41 +164,44 @@ gdal_rasterize -te $extent -tap -burn 1 \
                -a_nodata 255 \
                -ot Byte -tr 30 30 -l pa pa.shp pa.tif
 
-# # ===========================
-# # Forest
-# # ===========================
+# ===========================
+# Forest
+# ===========================
 
-# # Message
-# echo "Forest from BioSceneMada\n"
+# Message
+echo "Forest from Global Forest Watch\n"
 
-# # Download forest data from BioSceneMada
-# url="http://bioscenemada.cirad.fr/FileTransfer/for[1990-2010:10].tif"
-# curl -L $url -o 'for#1.tif'
+# Download forest data from Google Drive directory
+# Need the gdrive software: https://github.com/prasmussen/gdrive
+gdrive download -f --recursive '0B4yCK7KmZr9rTENDaFd6LVJCbnM'  # workshopReCaREDD
 
-# # Compute distance to forest edge in 2000
-# gdal_proximity.py for2000.tif _dist_edge.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
-#                   -values 255 -ot UInt32 -distunits GEO
-# gdal_translate -a_nodata 0 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_edge.tif dist_edge.tif
+# Change directory
+cd "workshopReCaREDD"
 
-# # Create raster fordefor2010.tif with 1:for2010, 0:defor00_10
-# gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for2010.tif for2010_.tif # Set nodata different from 255
-# gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for2000.tif for2000_.tif
-# gdal_calc.py --overwrite -A for2000_.tif -B for2010_.tif --outfile=fordefor2010.tif --type=Byte \
-#              --calc="255-254*(A==1)*(B==1)-255*(A==1)*(B==255)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
-#              --NoDataValue=255
+# Compute distance to forest edge in 2000
+gdal_proximity.py for2000.tif _dist_edge.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+                  -values 255 -ot UInt32 -distunits GEO
+gdal_translate -a_nodata 0 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_edge.tif dist_edge.tif
 
-# # Compute distance to past deforestation in 2000
-# # Create raster fordefor2000.tif  with 1:for2000, 0:defor90_00
-# gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for1990.tif for1990_.tif
-# gdal_calc.py --overwrite -A for1990_.tif -B for2000_.tif --outfile=fordefor2000.tif --type=Byte \
-#              --calc="255-254*(A==1)*(B==1)-255*(A==1)*(B==255)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
-#              --NoDataValue=255
-# # Compute distance (with option -use_input_nodata YES, it is much more efficient)
-# gdal_proximity.py fordefor2000.tif _dist_defor.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
-#                   -values 0 -ot UInt32 -distunits GEO -use_input_nodata YES
-# gdal_calc.py --overwrite -A _dist_defor.tif --outfile=dist_defor.tif --type=UInt32 \
-#              --calc="A*(A!=65535)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
-#              --NoDataValue=0
+# Create raster fordefor2010.tif with 1:for2010, 0:defor00_10
+gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for2010.tif for2010_.tif # Set nodata different from 255
+gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for2000.tif for2000_.tif
+gdal_calc.py --overwrite -A for2000_.tif -B for2010_.tif --outfile=fordefor2010.tif --type=Byte \
+             --calc="255-254*(A==1)*(B==1)-255*(A==1)*(B==255)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
+             --NoDataValue=255
+
+# Compute distance to past deforestation in 2000
+# Create raster fordefor2000.tif  with 1:for2000, 0:defor90_00
+gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for1990.tif for1990_.tif
+gdal_calc.py --overwrite -A for1990_.tif -B for2000_.tif --outfile=fordefor2000.tif --type=Byte \
+             --calc="255-254*(A==1)*(B==1)-255*(A==1)*(B==255)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
+             --NoDataValue=255
+# Compute distance (with option -use_input_nodata YES, it is much more efficient)
+gdal_proximity.py fordefor2000.tif _dist_defor.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+                  -values 0 -ot UInt32 -distunits GEO -use_input_nodata YES
+gdal_calc.py --overwrite -A _dist_defor.tif --outfile=dist_defor.tif --type=UInt32 \
+             --calc="A*(A!=65535)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
+             --NoDataValue=0
 
 # # ===========================
 # # Cleaning
