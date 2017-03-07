@@ -10,7 +10,7 @@
 
 # Make output directory
 mkdir -p data_raw
-cd "data_raw"
+cd data_raw
 
 # Variables
 continent="africa"
@@ -176,46 +176,50 @@ echo "Forest from Global Forest Watch\n"
 gdrive download -f --recursive '0B4yCK7KmZr9rTENDaFd6LVJCbnM'  # workshopReCaREDD
 
 # Change directory
-cd "workshopReCaREDD"
+cd workshopReCaREDD
 
-# Compute distance to forest edge in 2000
-gdal_proximity.py for2000.tif _dist_edge.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
-                  -values 255 -ot UInt32 -distunits GEO
+# Compute distance to forest edge in 2005
+gdal_proximity.py fcc05_10_cameroon.tif _dist_edge.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+                  -values 0 -ot UInt32 -distunits GEO
 gdal_translate -a_nodata 0 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_edge.tif dist_edge.tif
 
-# Create raster fordefor2010.tif with 1:for2010, 0:defor00_10
-gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for2010.tif for2010_.tif # Set nodata different from 255
-gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for2000.tif for2000_.tif
-gdal_calc.py --overwrite -A for2000_.tif -B for2010_.tif --outfile=fordefor2010.tif --type=Byte \
-             --calc="255-254*(A==1)*(B==1)-255*(A==1)*(B==255)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
+# Create raster fcc05_10.tif with 1:for2010, 0:loss05_10
+gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" fcc05_10_cameroon.tif _fcc05_10.tif # Set nodata different from 255
+gdal_calc.py --overwrite -A _fcc05_10.tif --outfile=fcc05_10.tif --type=Byte \
+             --calc="255-254*(A==1)-255*(A==2)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
              --NoDataValue=255
 
-# Compute distance to past deforestation in 2000
-# Create raster fordefor2000.tif  with 1:for2000, 0:defor90_00
-gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" for1990.tif for1990_.tif
-gdal_calc.py --overwrite -A for1990_.tif -B for2000_.tif --outfile=fordefor2000.tif --type=Byte \
-             --calc="255-254*(A==1)*(B==1)-255*(A==1)*(B==255)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
+# Compute distance to past deforestation (loss00_05)
+# Create raster fcc00_05.tif  with 1:for2005, 0:loss00_05
+gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" loss00_05_cameroon.tif _loss00_05.tif
+gdal_calc.py --overwrite -A _fcc05_10.tif -B _loss00_05.tif --outfile=fcc00_05.tif --type=Byte \
+             --calc="255-254*(A>=1)*(B==0)-255*(A==0)*(B==1)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
              --NoDataValue=255
 # Compute distance (with option -use_input_nodata YES, it is much more efficient)
-gdal_proximity.py fordefor2000.tif _dist_defor.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+gdal_proximity.py fcc00_05.tif _dist_defor.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
                   -values 0 -ot UInt32 -distunits GEO -use_input_nodata YES
 gdal_calc.py --overwrite -A _dist_defor.tif --outfile=dist_defor.tif --type=UInt32 \
              --calc="A*(A!=65535)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
              --NoDataValue=0
 
-# # ===========================
-# # Cleaning
-# # ===========================
+# Move files to data_raw
+cp -t ../ fcc05_10.tif dist_defor.tif dist_edge.tif
+cd ..
+rm -R workshopReCaREDD
 
-# # Message
-# echo "Cleaning directory\n"
+# ===========================
+# Cleaning
+# ===========================
 
-# # Create clean data directory
-# mkdir -p ../data
-# # Copy files
-# cp -t ../data fordefor2010.tif dist_*.tif *.kml altitude.tif slope.tif aspect.tif sapm.tif
-# # Remove raw data directory
-# cd ..
-# rm -R data_raw
+# Message
+echo "Cleaning directory\n"
+
+# Create clean data directory
+mkdir -p ../data
+# Copy files
+cp -t ../data fcc05_10.tif dist_*.tif *.kml altitude.tif slope.tif aspect.tif pa.tif
+# Remove raw data directory
+cd ..
+rm -R data_raw
 
 # End
