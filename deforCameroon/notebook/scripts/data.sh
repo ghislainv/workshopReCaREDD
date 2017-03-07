@@ -171,6 +171,9 @@ gdal_rasterize -te $extent -tap -burn 1 \
 # Message
 echo "Forest from Global Forest Watch\n"
 
+# Execute python script to obtain map from Google Earth Engine
+# python ../scripts/forest.py TO BE CONTINUED
+
 # Download forest data from Google Drive directory
 # Need the gdrive software: https://github.com/prasmussen/gdrive
 gdrive download -f --recursive '0B4yCK7KmZr9rTENDaFd6LVJCbnM'  # workshopReCaREDD
@@ -204,7 +207,7 @@ gdal_calc.py --overwrite -A _dist_defor.tif --outfile=dist_defor.tif --type=UInt
 
 # Move files to data_raw
 cp -t ../ fcc05_10.tif dist_defor.tif dist_edge.tif
-cd ..
+cd ../
 rm -R workshopReCaREDD
 
 # ===========================
@@ -219,7 +222,7 @@ mkdir -p ../data
 # Copy files
 cp -t ../data fcc05_10.tif dist_*.tif *.kml altitude.tif slope.tif aspect.tif pa.tif
 # Remove raw data directory
-cd ..
+cd ../
 rm -R data_raw
 
 # End
