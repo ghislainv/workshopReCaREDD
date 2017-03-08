@@ -56,10 +56,14 @@ ogr2ogr -overwrite -skipfailures -f 'ESRI Shapefile' -progress \
         -lco ENCODING=UTF-8 rivers.shp rivers.osm
 
 # Rasterize after reprojection
-# borders (only reprojection)
+# borders
 ogr2ogr -overwrite -s_srs EPSG:4326 -t_srs $proj -f 'ESRI Shapefile' \
         -lco ENCODING=UTF-8 borders_UTM.shp borders.shp
 # Extent: ogrinfo borders_UTM.shp borders_UTM | grep Extent
+gdal_rasterize -te $extent -tap -burn 1 \
+               -co "COMPRESS=LZW" -co "PREDICTOR=2" -ot Byte \
+               -a_nodata 255 \
+               -tr 150 150 -l borders_UTM borders_UTM.shp borders.tif
 # towns
 ogr2ogr -overwrite -s_srs EPSG:4326 -t_srs $proj -f 'ESRI Shapefile' \
         -lco ENCODING=UTF-8 towns_UTM.shp towns.shp
@@ -101,68 +105,68 @@ gdal_translate -a_nodata 4294967295 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_r
 gdal_translate -a_nodata 4294967295 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_town.tif dist_town.tif
 gdal_translate -a_nodata 4294967295 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_river.tif dist_river.tif
 
-# ===========================
-# SRTM
-# ===========================
+# # ===========================
+# # SRTM
+# # ===========================
 
-# Message
-echo "SRTM data from CGIAR-CSI\n"
+# # Message
+# echo "SRTM data from CGIAR-CSI\n"
 
-# Download SRTM data from CSI CGIAR
-url="http://srtm.csi.cgiar.org/SRT-ZIP/SRTM_V41/SRTM_Data_GeoTiff/srtm_["$tiles_long"]_["$tiles_lat"].zip"
-#url="http://gis-lab.info/data/srtm-tif/srtm_["$tiles_long"]_["$tiles_lat"].zip"
-curl -L $url -o 'SRTM_V41_#1_#2.zip'
+# # Download SRTM data from CSI CGIAR
+# url="http://srtm.csi.cgiar.org/SRT-ZIP/SRTM_V41/SRTM_Data_GeoTiff/srtm_["$tiles_long"]_["$tiles_lat"].zip"
+# #url="http://gis-lab.info/data/srtm-tif/srtm_["$tiles_long"]_["$tiles_lat"].zip"
+# curl -L $url -o 'SRTM_V41_#1_#2.zip'
 
-# Unzip
-for z in SRTM_*.zip; do
-d=$(basename $z .zip)
-mkdir $d && unzip $z -d $d
-done
+# # Unzip
+# for z in SRTM_*.zip; do
+# d=$(basename $z .zip)
+# mkdir $d && unzip $z -d $d
+# done
 
-# Build vrt file
-gdalbuildvrt srtm.vrt */*.tif
+# # Build vrt file
+# gdalbuildvrt srtm.vrt */*.tif
 
-# Merge and reproject
-gdalwarp -overwrite -t_srs $proj -te $extent -r bilinear \
-         -co "COMPRESS=LZW" -co "PREDICTOR=2" \
-         -tr 90 90 srtm.vrt altitude.tif
+# # Merge and reproject
+# gdalwarp -overwrite -t_srs $proj -te $extent -r bilinear \
+#          -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+#          -tr 90 90 srtm.vrt altitude.tif
 
-# Compute slope and aspect
-gdaldem slope altitude.tif slope_.tif -co "COMPRESS=LZW" -co "PREDICTOR=2"
-gdaldem aspect altitude.tif aspect_.tif -co "COMPRESS=LZW" -co "PREDICTOR=2"
+# # Compute slope and aspect
+# gdaldem slope altitude.tif slope_.tif -co "COMPRESS=LZW" -co "PREDICTOR=2"
+# gdaldem aspect altitude.tif aspect_.tif -co "COMPRESS=LZW" -co "PREDICTOR=2"
 
-# Convert to Int16
-gdal_translate -ot Int16 -co "COMPRESS=LZW" -co "PREDICTOR=2" slope_.tif slope.tif
-gdal_translate -ot Int16 -co "COMPRESS=LZW" -co "PREDICTOR=2" aspect_.tif aspect.tif
+# # Convert to Int16
+# gdal_translate -ot Int16 -co "COMPRESS=LZW" -co "PREDICTOR=2" slope_.tif slope.tif
+# gdal_translate -ot Int16 -co "COMPRESS=LZW" -co "PREDICTOR=2" aspect_.tif aspect.tif
 
-# ===========================
-# SAPM
-# ===========================
+# # ===========================
+# # SAPM
+# # ===========================
 
-# Message
-echo "Protected area network from Protected Planet\n"
-# See protected planet: www.protectedplanet.net
+# # Message
+# echo "Protected area network from Protected Planet\n"
+# # See protected planet: www.protectedplanet.net
 
-# Download from Protected Planet
-url="https://www.protectedplanet.net/downloads/WDPA_Mar2017_"$iso"?type=shapefile"
-wget -O pa.zip $url
-unzip pa.zip
+# # Download from Protected Planet
+# url="https://www.protectedplanet.net/downloads/WDPA_Mar2017_"$iso"?type=shapefile"
+# wget -O pa.zip $url
+# unzip pa.zip
 
-# Reproject
-input_file="WDPA_Mar2017_"$iso"-shapefile-polygons.shp"
-ogr2ogr -overwrite -skipfailures -f 'ESRI Shapefile' -progress \
-        -s_srs EPSG:4326 -t_srs $proj \
-        -lco ENCODING=UTF-8 pa.shp $input_file
+# # Reproject
+# input_file="WDPA_Mar2017_"$iso"-shapefile-polygons.shp"
+# ogr2ogr -overwrite -skipfailures -f 'ESRI Shapefile' -progress \
+#         -s_srs EPSG:4326 -t_srs $proj \
+#         -lco ENCODING=UTF-8 pa.shp $input_file
 
-# Convert to kml
-ogr2ogr -f 'KML' pa.kml pa.shp 
+# # Convert to kml
+# ogr2ogr -f 'KML' pa.kml pa.shp 
 
-# Rasterize
-gdal_rasterize -te $extent -tap -burn 1 \
-               -co "COMPRESS=LZW" -co "PREDICTOR=2" \
-               -init 0 \
-               -a_nodata 255 \
-               -ot Byte -tr 30 30 -l pa pa.shp pa.tif
+# # Rasterize
+# gdal_rasterize -te $extent -tap -burn 1 \
+#                -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+#                -init 0 \
+#                -a_nodata 255 \
+#                -ot Byte -tr 30 30 -l pa pa.shp pa.tif
 
 # ===========================
 # Forest

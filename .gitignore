@@ -1,6 +1,7 @@
 # data
 deforCameroon/notebook/data_raw
 deforCameroon/notebook/data
+deforCameroon/notebook/output
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
