@@ -20,7 +20,7 @@ import ee
 ee.Initialize()
 
 # Region for Cameroon
-coords = [431451, 184295, 1301829, 1452775]  # xmin, ymin, xmax, ymax
+coords = [410000, 165000, 1325000, 1500000]  # xmin, ymin, xmax, ymax
 region = ee.Geometry.Rectangle(coords, proj='EPSG:32632', geodesic=False)
 # Tree cover percentage threshold to define forest
 perc = 50
