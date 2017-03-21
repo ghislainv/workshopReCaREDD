@@ -211,6 +211,18 @@ cd ../
 # rm -R workshopReCaREDD
 
 # ===========================
+# Carbon
+# ===========================
+
+# Message
+echo "AGB from Avitabile's map\n"
+
+# Resample
+gdalwarp -overwrite -s_srs EPSG:4326 -t_srs $proj -te $extent -r bilinear \
+         -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+         -tr 1000 1000 Avitabile_AGB_Map.tif AGB.tif
+
+# ===========================
 # Cleaning
 # ===========================
 
@@ -220,7 +232,7 @@ echo "Cleaning directory\n"
 # Create clean data directory
 mkdir -p ../data
 # Copy files
-cp -t ../data fcc00_05.tif fcc05_10.tif dist_*.tif *_UTM.* altitude.tif slope.tif aspect.tif pa.tif
+cp -t ../data fcc00_05.tif fcc05_10.tif dist_*.tif *_UTM.* altitude.tif slope.tif aspect.tif pa.tif AGB.tif
 # Remove raw data directory
 cd ../
 # rm -R data_raw
