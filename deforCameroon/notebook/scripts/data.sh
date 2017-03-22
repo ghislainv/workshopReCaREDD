@@ -211,8 +211,9 @@ cd ../
 # rm -R workshopReCaREDD
 
 # # Mask with country border
-# gdalwarp -overwrite -cutline data/borders_UTM.shp -co 'COMPRESS=LZW' -co 'PREDICTOR=2' \
-#          data/fcc05_10.tif data/fcc05_10_ctry.tif
+# gdalwarp -overwrite -srcnodata 255 -dstnodata 255 -cutline data/borders_UTM.shp \
+#           data/fcc05_10_gfc.tif data/_fcc05_10.tif
+# gdal_translate -co "COMPRESS=LZW" -co "PREDICTOR=2" data/_fcc05_10.tif data/fcc05_10.tif
 
 # ===========================
 # Carbon
