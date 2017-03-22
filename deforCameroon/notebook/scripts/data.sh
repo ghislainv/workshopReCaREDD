@@ -210,6 +210,10 @@ cp -t ../ fcc00_05.tif fcc05_10.tif forest2014_gfc.tif dist_defor.tif dist_edge.
 cd ../
 # rm -R workshopReCaREDD
 
+# # Mask with country border
+# gdalwarp -overwrite -cutline data/borders_UTM.shp -co 'COMPRESS=LZW' -co 'PREDICTOR=2' \
+#          data/fcc05_10.tif data/fcc05_10_ctry.tif
+
 # ===========================
 # Carbon
 # ===========================
