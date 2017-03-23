@@ -3,6 +3,11 @@ deforCameroon/notebook/data_raw
 deforCameroon/notebook/data
 deforCameroon/notebook/output
 deforCameroon/notebook/data.zip
+#
+deforCongo/notebook/data_raw
+deforCongo/notebook/data
+deforCongo/notebook/output
+deforCongo/notebook/data.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
