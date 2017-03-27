@@ -8,6 +8,11 @@ deforCongo/notebook/data_raw
 deforCongo/notebook/data
 deforCongo/notebook/output
 deforCongo/notebook/data.zip
+#
+deforDRC/notebook/data_raw
+deforDRC/notebook/data
+deforDRC/notebook/output
+deforDRC/notebook/data.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
