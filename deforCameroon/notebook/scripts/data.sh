@@ -165,6 +165,22 @@ gdal_rasterize -te $extent -tap -burn 1 \
                -ot Byte -tr 30 30 -l pa_UTM pa_UTM.shp pa.tif
 
 # ===========================
+# Carbon
+# ===========================
+
+# Message
+echo "AGB from Avitabile's map\n"
+
+# Download
+url="https://bioscenemada.cirad.fr/FileTransfer/JRC/Avitabile_AGB_Map.tif"
+wget -O Avitabile_AGB_Map.tif $url
+
+# Resample
+gdalwarp -overwrite -s_srs EPSG:4326 -t_srs $proj -te $extent -r bilinear \
+         -co "COMPRESS=LZW" -co "PREDICTOR=2" \
+         -tr 1000 1000 Avitabile_AGB_Map.tif AGB.tif
+
+# ===========================
 # Forest
 # ===========================
 
@@ -176,56 +192,67 @@ echo "Forest from Global Forest Watch\n"
 
 # Download forest data from Google Drive directory
 # Need the gdrive software: https://github.com/prasmussen/gdrive
-gdrive download -f --recursive '0B4yCK7KmZr9rTENDaFd6LVJCbnM'  # workshopReCaREDD
+# gdrive download -f --recursive '0B4yCK7KmZr9rTENDaFd6LVJCbnM'  # workshopReCaREDD
 
 # Change directory
-cd workshopReCaREDD
+mkdir -p fordir
+cd fordir
 
-# Compute distance to forest edge in 2005
+# Download forest data from Bioscenemada website
+url="https://bioscenemada.cirad.fr/FileTransfer/JRC/"$iso"/fcc05_10_gfc.tif"
+wget $url
+url="https://bioscenemada.cirad.fr/FileTransfer/JRC/"$iso"/loss00_05_gfc.tif"
+wget $url
+
+# =====
+# 1. Compute distance to forest edge in 2005
+# =====
+
 gdal_proximity.py fcc05_10_gfc.tif _dist_edge.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
                   -values 0 -ot UInt32 -distunits GEO
 gdal_translate -a_nodata 0 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_edge.tif dist_edge.tif
 
-# Create raster fcc05_10.tif with 1:for2010, 0:loss05_10
-gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" fcc05_10_gfc.tif _fcc05_10.tif # Set nodata different from 255
-gdal_calc.py --overwrite -A _fcc05_10.tif --outfile=fcc05_10.tif --type=Byte \
-             --calc="255-254*(A==1)-255*(A==2)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
-             --NoDataValue=255
+# =====
+# 2. Compute distance to past deforestation (loss00_05)
+# =====
 
-# Compute distance to past deforestation (loss00_05)
-# Create raster fcc00_05.tif  with 1:for2005, 0:loss00_05
+# Set nodata different from 255
+gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" fcc05_10_gfc.tif _fcc05_10.tif
 gdal_translate -a_nodata 99 -co "COMPRESS=LZW" -co "PREDICTOR=2" loss00_05_gfc.tif _loss00_05.tif
-gdal_calc.py --overwrite -A _fcc05_10.tif -B _loss00_05.tif --outfile=fcc00_05.tif --type=Byte \
+
+# Create raster _fcc00_05.tif  with 1:for2005, 0:loss00_05
+gdal_calc.py --overwrite -A _fcc05_10.tif -B _loss00_05.tif --outfile=_fcc00_05.tif --type=Byte \
              --calc="255-254*(A>=1)*(B==0)-255*(A==0)*(B==1)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
              --NoDataValue=255
+
+# Mask with country border
+gdalwarp -overwrite -srcnodata 255 -dstnodata 255 -cutline ../borders_UTM.shp \
+          _fcc00_05.tif fcc00_05_mask.tif
+gdal_translate -co "COMPRESS=LZW" -co "PREDICTOR=2" fcc00_05_mask.tif fcc00_05.tif
+
 # Compute distance (with option -use_input_nodata YES, it is much more efficient)
 gdal_proximity.py fcc00_05.tif _dist_defor.tif -co "COMPRESS=LZW" -co "PREDICTOR=2" \
                   -values 0 -ot UInt32 -distunits GEO -use_input_nodata YES
-gdal_calc.py --overwrite -A _dist_defor.tif --outfile=dist_defor.tif --type=UInt32 \
-             --calc="A*(A!=65535)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
-             --NoDataValue=0
+gdal_translate -a_nodata 65535 -co "COMPRESS=LZW" -co "PREDICTOR=2" _dist_defor.tif dist_defor.tif
+
+# =====
+# 3. Forest raster
+# =====
+
+# Create raster fcc05_10.tif with 1:for2010, 0:loss05_10
+gdal_calc.py --overwrite -A _fcc05_10.tif --outfile=fcc05_10_reclass.tif --type=Byte \
+             --calc="255-254*(A==1)-255*(A==2)" --co "COMPRESS=LZW" --co "PREDICTOR=2" \
+             --NoDataValue=255
+
+# Mask with country border
+gdalwarp -overwrite -srcnodata 255 -dstnodata 255 -cutline ../borders_UTM.shp \
+          fcc05_10_reclass.tif fcc05_10_mask.tif
+gdal_translate -co "COMPRESS=LZW" -co "PREDICTOR=2" fcc05_10_mask.tif fcc05_10.tif
 
 # Move files to data_raw
-cp -t ../ fcc00_05.tif fcc05_10.tif forest2014_gfc.tif dist_defor.tif dist_edge.tif
+cp -t ../ fcc05_10.tif dist_defor.tif dist_edge.tif
 cd ../
-# rm -R workshopReCaREDD
-
-# # Mask with country border
-# gdalwarp -overwrite -srcnodata 255 -dstnodata 255 -cutline data/borders_UTM.shp \
-#           data/fcc05_10_gfc.tif data/_fcc05_10.tif
-# gdal_translate -co "COMPRESS=LZW" -co "PREDICTOR=2" data/_fcc05_10.tif data/fcc05_10.tif
-
-# ===========================
-# Carbon
-# ===========================
-
-# Message
-echo "AGB from Avitabile's map\n"
-
-# Resample
-gdalwarp -overwrite -s_srs EPSG:4326 -t_srs $proj -te $extent -r bilinear \
-         -co "COMPRESS=LZW" -co "PREDICTOR=2" \
-         -tr 1000 1000 Avitabile_AGB_Map.tif AGB.tif
+# rm -R fordir
 
 # ===========================
 # Cleaning
@@ -236,8 +263,10 @@ echo "Cleaning directory\n"
 
 # Create clean data directory
 mkdir -p ../data
+mkdir -p ../data/emissions
 # Copy files
-cp -t ../data fcc00_05.tif fcc05_10.tif dist_*.tif *_UTM.* altitude.tif slope.tif aspect.tif pa.tif AGB.tif
+cp -t ../data fcc05_10.tif dist_*.tif *_UTM.* altitude.tif slope.tif aspect.tif pa.tif
+cp -t ../data/emissions AGB.tif
 # Remove raw data directory
 cd ../
 # rm -R data_raw
