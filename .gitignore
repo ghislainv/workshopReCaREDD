@@ -13,6 +13,9 @@ deforDRC/notebook/data_raw
 deforDRC/notebook/data
 deforDRC/notebook/output
 deforDRC/notebook/data.zip
+#
+deforAfrica
+deforTanzania
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
